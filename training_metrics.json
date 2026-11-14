@@ -1,0 +1,61 @@
+{
+  "dataset": "fake_job_postings.csv",
+  "rows_after_deduplication": 17880,
+  "class_counts": {
+    "real": 17014,
+    "fraudulent": 866
+  },
+  "test_size": 0.2,
+  "random_seed": 42,
+  "cross_validation": {
+    "folds": 5,
+    "method": "StratifiedKFold",
+    "smote_inside_pipeline": true
+  },
+  "model": "Logistic Regression",
+  "cv_pr_auc_mean": 0.8802678592277399,
+  "cv_pr_auc_std": 0.02034209825403934,
+  "cv_fold_pr_auc": [
+    0.9040221119193041,
+    0.8775990474683696,
+    0.8977509088155362,
+    0.8651306318711104,
+    0.8568365960643788
+  ],
+  "cv_oof_metrics": {
+    "pr_auc": 0.8801882254406522,
+    "f1": 0.8142292490118577,
+    "precision": 0.9003496503496503,
+    "recall": 0.7431457431457431,
+    "confusion_matrix": [
+      [
+        13554,
+        57
+      ],
+      [
+        178,
+        515
+      ]
+    ]
+  },
+  "selected_threshold": 0.7279035226332677,
+  "threshold_rule": "max_f1",
+  "test": {
+    "pr_auc": 0.9421336923008328,
+    "f1": 0.8792569659442725,
+    "precision": 0.9466666666666667,
+    "recall": 0.8208092485549133,
+    "confusion_matrix": [
+      [
+        3395,
+        8
+      ],
+      [
+        31,
+        142
+      ]
+    ],
+    "n": 3576,
+    "positive_count": 173
+  }
+}
