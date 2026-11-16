@@ -63,7 +63,7 @@ def rule_based_prediction(record):
         reasons.append("Company information is missing")
     if not requirements:
         reasons.append("Requirements are missing")
-    if str(record.get("has_company_logo", record.get("logo_present", 1))).lower() in {"0", "false", "no", "n"}:
+    if str(record.get("has_company_logo", record.get("logo_present", 1))).lower() in {"0", "0.0", "false", "no", "n"}:
         reasons.append("Company logo is not provided")
     score = min(95, len(flags) * 15 + (15 if description and words < 40 else 0)
                 + (10 if not company else 0) + (5 if not requirements else 0)

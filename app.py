@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 
 import joblib
-import pandas as pd
 import streamlit as st
 
 from app_core import MAX_UPLOAD_BYTES, RED_FLAGS, clean_text, rule_based_prediction, validate_csv
