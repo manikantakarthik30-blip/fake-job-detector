@@ -21,7 +21,7 @@ The training script:
 - Fits the final pipeline on the training partition and evaluates the holdout once.
 - Writes `model.joblib` and `metrics.json`.
 
-The current production inference artifact is Logistic Regression with 5,000 TF-IDF features + SMOTE; its five-fold CV and holdout metrics are recorded in `training_metrics.json`/`metrics.json`. A separate like-for-like model comparison on a stratified 80/20 split, using 1,000 TF-IDF features and SMOTE on training data only, is recorded in `model_comparison_holdout.json`. In that comparison Random Forest achieved the best F1 (0.7554) and PR-AUC (0.8406); XGBoost achieved high recall (0.9538) but low precision (0.2194) at threshold 0.5. The comparison is a single holdout experiment, not five-fold CV. All scores are from a historical dataset and do not guarantee real-world performance.
+The current production inference artifact is Logistic Regression with 5,000 TF-IDF features + SMOTE; its five-fold CV and holdout metrics are recorded in `training_metrics.json`/`metrics.json`. A separate like-for-like model comparison on a stratified 80/20 split, using 1,000 TF-IDF features and SMOTE on training data only, is recorded in `model_comparison_holdout.json`. In that comparison Random Forest achieved the best F1 (0.7554) and PR-AUC (0.8406). XGBoost reached PR-AUC 0.7640 and F1 0.6789 at threshold 0.5. All models use SMOTE on training data only; XGBoost does not receive a second imbalance weight. The comparison is a single holdout experiment, not five-fold CV. All scores are from a historical dataset and do not guarantee real-world performance.
 
 ## Inference
 
@@ -41,4 +41,4 @@ This is a historical, English-language dataset. Predictions are risk signals, no
 
 ## Streamlit single-check integration
 
-The single-listing form sends the entered title, company name, and description to the saved model. The result displays the model probability, selected threshold, verdict, and top weighted terms. The CI suite includes a Streamlit AppTest that boots the app, submits a sample listing, and checks the rendered prediction. The batch-analysis tab remains a separate legacy workflow and should not be treated as the saved-model inference path.
+The single-listing form sends the entered title, company name, and description to the saved model. The result displays the model probability, selected threshold, verdict, and top weighted terms. The CI suite includes a Streamlit AppTest that boots the app, submits a sample listing, and checks the rendered prediction. The batch-analysis tab also now splits raw rows before fitting TF-IDF and SMOTE, evaluates on untouched holdout rows, and shows the selected model's predictions with train/test labels.
