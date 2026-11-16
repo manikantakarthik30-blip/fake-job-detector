@@ -1,14 +1,81 @@
 {
   "dataset": "fake_job_postings.csv",
   "rows_after_exact_deduplication": 17880,
-  "class_counts": {"legitimate": 17014, "fraudulent": 866},
-  "split": {"train_rows": 14304, "test_rows": 3576, "test_size": 0.2, "random_state": 42, "stratified": true},
-  "feature_pipeline": {"tfidf_max_features": 1000, "ngram_range": [1, 1], "smote_on_training_partition_only": true},
+  "class_counts": {
+    "legitimate": 17014,
+    "fraudulent": 866
+  },
+  "split": {
+    "train_rows": 14304,
+    "test_rows": 3576,
+    "test_size": 0.2,
+    "random_state": 42,
+    "stratified": true
+  },
+  "feature_pipeline": {
+    "tfidf_max_features": 1000,
+    "ngram_range": [
+      1,
+      1
+    ],
+    "smote_on_training_partition_only": true
+  },
   "decision_threshold": 0.5,
-  "note": "Like-for-like single holdout comparison. These are not 5-fold CV results. The separate 5000-feature Logistic Regression production baseline is evaluated in metrics.json.",
+  "note": "Like-for-like single holdout comparison. Not 5-fold CV. Same stratified 80/20 split, 1,000 unigram TF-IDF features, SMOTE fitted only on training data, and 0.5 classification threshold. XGBoost uses scale_pos_weight=1 because SMOTE already balances the training fold.",
   "results": {
-    "Logistic Regression": {"pr_auc": 0.8298260964291739, "roc_auc": 0.9808125778172609, "precision": 0.5823754789272031, "recall": 0.8786127167630058, "f1": 0.7004608294930875, "confusion_matrix": [[3294,109],[21,152]], "runtime_seconds": 3.78},
-    "Random Forest": {"pr_auc": 0.8406049217486452, "roc_auc": 0.9755740854295512, "precision": 0.8133333333333334, "recall": 0.7052023121387283, "f1": 0.7554179566563467, "confusion_matrix": [[3375,28],[51,122]], "runtime_seconds": 11.25},
-    "XGBoost": {"pr_auc": 0.7904494466200319, "roc_auc": 0.9692637743983122, "precision": 0.21941489361702127, "recall": 0.953757225433526, "f1": 0.3567567567567568, "confusion_matrix": [[2816,587],[8,165]], "runtime_seconds": 10.26}
+    "Logistic Regression": {
+      "pr_auc": 0.8298260964291739,
+      "roc_auc": 0.9808125778172609,
+      "precision": 0.5823754789272031,
+      "recall": 0.8786127167630058,
+      "f1": 0.7004608294930875,
+      "confusion_matrix": [
+        [
+          3294,
+          109
+        ],
+        [
+          21,
+          152
+        ]
+      ],
+      "runtime_seconds": 3.78
+    },
+    "Random Forest": {
+      "pr_auc": 0.8406049217486452,
+      "roc_auc": 0.9755740854295512,
+      "precision": 0.8133333333333334,
+      "recall": 0.7052023121387283,
+      "f1": 0.7554179566563467,
+      "confusion_matrix": [
+        [
+          3375,
+          28
+        ],
+        [
+          51,
+          122
+        ]
+      ],
+      "runtime_seconds": 11.25
+    },
+    "XGBoost": {
+      "pr_auc": 0.7640206562001867,
+      "roc_auc": 0.965895444176254,
+      "precision": 0.6231884057971014,
+      "recall": 0.7456647398843931,
+      "f1": 0.6789473684210526,
+      "confusion_matrix": [
+        [
+          3325,
+          78
+        ],
+        [
+          44,
+          129
+        ]
+      ],
+      "runtime_seconds": 10.27
+    }
   }
 }
