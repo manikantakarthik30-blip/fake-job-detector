@@ -295,7 +295,7 @@ def run_pipeline(file_bytes):
     models = {
         'Random Forest': RandomForestClassifier(
             n_estimators=80, max_depth=14, min_samples_leaf=2,
-            class_weight='balanced_subsample', n_jobs=-1, random_state=42
+            n_jobs=-1, random_state=42
         ),
         'XGBoost': xgb.XGBClassifier(
             n_estimators=80, max_depth=4, learning_rate=0.1,
