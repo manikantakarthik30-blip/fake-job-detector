@@ -50,6 +50,7 @@ def predict_one(text_dict, model_path="model.joblib"):
         ]
     return {
         "probability": probability,
+        "threshold": threshold,
         "verdict": "LIKELY_FRAUDULENT" if probability >= threshold else "LIKELY_LEGITIMATE",
         "top_signals": top_signals,
     }
