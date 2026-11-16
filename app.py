@@ -25,6 +25,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import LabelEncoder
 from sklearn.impute import SimpleImputer
 from imblearn.over_sampling import SMOTE
+from imblearn.pipeline import Pipeline
 import xgboost as xgb
 
 # Visualization
@@ -256,73 +257,91 @@ def build_X(df):
 
 @st.cache_data(show_spinner=False)
 def run_pipeline(file_bytes):
-    """Full ML pipeline — cached so it doesn't re-run on widget interaction."""
-    df = pd.read_csv(io.BytesIO(file_bytes))
+    """Leakage-safe batch comparison: split raw listings before fitting TF-IDF or SMOTE."""
+    df = pd.read_csv(io.BytesIO(file_bytes)).copy()
     target = detect_target(df)
-    df = engineer_features(df)
-    X, feat_names, tfidf = build_X(df)
+    text_cols = ['title', 'company_profile', 'description', 'requirements',
+                 'benefits', 'location', 'employment_type',
+                 'required_experience', 'required_education']
+    available = [column for column in text_cols if column in df.columns]
+    if not available:
+        raise ValueError("The CSV must contain at least one job-text column.")
 
-    if target:
-        y = pd.to_numeric(df[target], errors='coerce').fillna(0).astype(int).values
+    raw_text = df[available].fillna('').astype(str).agg(' '.join, axis=1)
+    df['_text'] = raw_text.apply(clean_text)
+    df['feat_red_flags'] = df['_text'].apply(
+        lambda value: sum(flag in value for flag in RED_FLAGS)
+    )
+    df['SPLIT'] = 'n/a'
 
-        # Balance with SMOTE
-        try:
-            sm = SMOTE(random_state=42, k_neighbors=min(5, max(y.sum()-1, 1)))
-            X_res, y_res = sm.fit_resample(X, y)
-        except Exception:
-            X_res, y_res = X, y
+    if not target:
+        scores = (df['feat_red_flags'] * 20).clip(0, 100)
+        df['FAKE_PROBABILITY'] = scores.astype(float)
+        df['PREDICTION'] = (scores >= 40).astype(int)
+        df['VERDICT'] = df['PREDICTION'].map({0: '✅ REAL', 1: '🚨 FAKE'})
+        return df, None, None, [], target, False
 
-        X_tr, X_te, y_tr, y_te = train_test_split(
-            X_res, y_res, test_size=0.2, random_state=42, stratify=y_res)
+    labels = pd.to_numeric(df[target], errors='coerce')
+    valid = labels.isin([0, 1])
+    df = df.loc[valid].reset_index(drop=True)
+    y = labels.loc[valid].astype(int).reset_index(drop=True)
+    if len(df) < 50 or y.nunique() != 2 or y.value_counts().min() < 5:
+        raise ValueError("Need at least 50 valid rows and at least 5 examples of each class.")
 
-        # Train 4 models
-        scale = (y_tr == 0).sum() / max((y_tr == 1).sum(), 1)
-        models = {
-            'Random Forest':      RandomForestClassifier(n_estimators=200, max_depth=10, random_state=42, class_weight='balanced'),
-            'XGBoost':            xgb.XGBClassifier(n_estimators=200, max_depth=6, learning_rate=0.1, scale_pos_weight=scale, random_state=42, use_label_encoder=False, eval_metric='logloss', verbosity=0),
-            'Logistic Regression':LogisticRegression(max_iter=1000, class_weight='balanced', random_state=42),
-            'Gradient Boosting':  GradientBoostingClassifier(n_estimators=150, max_depth=5, random_state=42),
+    X = df['_text']
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.20, random_state=42, stratify=y
+    )
+    models = {
+        'Random Forest': RandomForestClassifier(
+            n_estimators=80, max_depth=14, min_samples_leaf=2,
+            class_weight='balanced_subsample', n_jobs=-1, random_state=42
+        ),
+        'XGBoost': xgb.XGBClassifier(
+            n_estimators=80, max_depth=4, learning_rate=0.1,
+            subsample=0.8, colsample_bytree=0.8, scale_pos_weight=1.0,
+            tree_method='hist', eval_metric='aucpr', n_jobs=-1,
+            random_state=42, verbosity=0
+        ),
+        'Logistic Regression': LogisticRegression(
+            C=2, max_iter=500, solver='liblinear', random_state=42
+        ),
+    }
+
+    results = {}
+    for name, estimator in models.items():
+        model = Pipeline([
+            ('tfidf', TfidfVectorizer(
+                max_features=1000, min_df=2, max_df=0.98, sublinear_tf=True
+            )),
+            ('smote', SMOTE(random_state=42, k_neighbors=3)),
+            ('model', estimator),
+        ])
+        model.fit(X_train, y_train)
+        probabilities = model.predict_proba(X_test)[:, 1]
+        predictions = (probabilities >= 0.5).astype(int)
+        results[name] = {
+            'model': model,
+            'accuracy': accuracy_score(y_test, predictions),
+            'f1': f1_score(y_test, predictions, zero_division=0),
+            'precision': precision_score(y_test, predictions, zero_division=0),
+            'recall': recall_score(y_test, predictions, zero_division=0),
+            'roc_auc': roc_auc_score(y_test, probabilities),
+            'preds': predictions,
+            'proba': probabilities,
+            'cm': confusion_matrix(y_test, predictions, labels=[0, 1]),
         }
 
-        results = {}
-        for name, m in models.items():
-            m.fit(X_tr, y_tr)
-            yp = m.predict(X_te)
-            results[name] = {
-                'model':     m,
-                'accuracy':  accuracy_score(y_te, yp),
-                'f1':        f1_score(y_te, yp, zero_division=0),
-                'precision': precision_score(y_te, yp, zero_division=0),
-                'recall':    recall_score(y_te, yp, zero_division=0),
-                'roc_auc':   roc_auc_score(y_te, m.predict_proba(X_te)[:, 1]),
-                'preds':     yp,
-                'proba':     m.predict_proba(X_te)[:, 1],
-                'cm':        confusion_matrix(y_te, yp),
-            }
-
-        best = max(results, key=lambda k: results[k]['f1'])
-        best_model = results[best]['model']
-
-        df['PREDICTION']       = best_model.predict(X)
-        df['FAKE_PROBABILITY'] = (best_model.predict_proba(X)[:, 1] * 100).round(1)
-        df['VERDICT']          = df['PREDICTION'].map({0: '✅ REAL', 1: '🚨 FAKE'})
-
-        return df, results, best, feat_names, target, True
-
-    else:
-        # Rule-based fallback
-        scores = (
-            df['feat_red_flags'] * 20 +
-            df['feat_exclaim'].clip(0, 5) * 8 +
-            (df['feat_len'] < 200).astype(int) * 30 +
-            (df['has_company_logo'] == 0).astype(int) * 20
-        ).clip(0, 100)
-
-        df['FAKE_PROBABILITY'] = scores.round(1)
-        df['PREDICTION']       = (scores >= 40).astype(int)
-        df['VERDICT']          = df['PREDICTION'].map({0: '✅ REAL', 1: '🚨 FAKE'})
-
-        return df, None, None, feat_names, target, False
+    best = max(results, key=lambda name: results[name]['f1'])
+    best_model = results[best]['model']
+    all_probabilities = best_model.predict_proba(X)[:, 1]
+    df['FAKE_PROBABILITY'] = (all_probabilities * 100).round(1)
+    df['PREDICTION'] = (all_probabilities >= 0.5).astype(int)
+    df['VERDICT'] = df['PREDICTION'].map({0: '✅ REAL', 1: '🚨 FAKE'})
+    df.loc[X_train.index, 'SPLIT'] = 'train'
+    df.loc[X_test.index, 'SPLIT'] = 'test (unseen)'
+    feature_names = best_model.named_steps['tfidf'].get_feature_names_out().tolist()
+    return df, results, best, feature_names, target, True
 
 
 def make_sample_csv():
@@ -397,8 +416,7 @@ with st.sidebar:
     st.markdown("**🤖 ALGORITHMS**")
     st.markdown("""
     <div style='font-size:0.78rem;color:#8B949E;line-height:1.9;'>
-    • Random Forest<br>• XGBoost<br>• Logistic Regression<br>
-    • Gradient Boosting<br>• TF-IDF NLP<br>• SMOTE Balancing
+    • Random Forest<br>• XGBoost<br>• Logistic Regression<br>• TF-IDF NLP<br>• SMOTE in training split
     </div>
     """, unsafe_allow_html=True)
 
@@ -592,7 +610,7 @@ with tab1:
 
                 # Chart 5: Feature importance (Random Forest)
                 if 'Random Forest' in ml_results:
-                    rf_model = ml_results['Random Forest']['model']
+                    rf_model = ml_results['Random Forest']['model'].named_steps['model']
                     if hasattr(rf_model, 'feature_importances_'):
                         imp = rf_model.feature_importances_
                         top_idx = np.argsort(imp)[-15:]
@@ -738,9 +756,9 @@ with tab3:
             <b style='color:#00D9FF;'>2. Feature Engineering</b> — Extract 300+ text + numeric features<br>
             <b style='color:#00D9FF;'>3. TF-IDF Vectorization</b> — Convert text to ML-ready format<br>
             <b style='color:#00D9FF;'>4. SMOTE Balancing</b> — Fix class imbalance synthetically<br>
-            <b style='color:#00D9FF;'>5. Train 4 Models</b> — RF, XGBoost, LR, GradBoost<br>
-            <b style='color:#00D9FF;'>6. Ensemble Vote</b> — Best model selected by F1 score<br>
-            <b style='color:#00D9FF;'>7. Predict + Score</b> — Label each listing with % fake probability
+            <b style='color:#00D9FF;'>5. Split raw data</b> — Stratified 80/20 split before learning features<br>
+            <b style='color:#00D9FF;'>6. Train models</b> — TF-IDF and SMOTE fit only on training data<br>
+            <b style='color:#00D9FF;'>7. Predict + Score</b> — Best holdout F1 model scores each listing
           </div>
         </div>
 
