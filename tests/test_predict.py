@@ -30,6 +30,7 @@ def test_model_loads_probability_range_and_contract(tmp_path):
     _save_fixture(path)
     result = predict_one({"title": "Urgent job", "description": "Pay deposit fee"}, str(path))
     assert 0.0 <= result["probability"] <= 1.0
+    assert 0.0 < result["threshold"] < 1.0
     assert result["verdict"] in {"LIKELY_FRAUDULENT", "LIKELY_LEGITIMATE"}
     assert isinstance(result["top_signals"], list)
 
