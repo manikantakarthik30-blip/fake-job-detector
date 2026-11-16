@@ -1,0 +1,81 @@
+{
+  "dataset": "fake_job_postings.csv",
+  "rows_after_exact_deduplication": 17880,
+  "class_counts": {
+    "legitimate": 17014,
+    "fraudulent": 866
+  },
+  "split": {
+    "train_rows": 14304,
+    "test_rows": 3576,
+    "test_size": 0.2,
+    "random_state": 42,
+    "stratified": true
+  },
+  "feature_pipeline": {
+    "tfidf_max_features": 1000,
+    "ngram_range": [
+      1,
+      1
+    ],
+    "smote_on_training_partition_only": true
+  },
+  "decision_threshold": 0.5,
+  "note": "Like-for-like single holdout comparison. Not 5-fold CV. Same stratified 80/20 split, 1,000 unigram TF-IDF features, SMOTE fitted only on training data, no additional class weights, and 0.5 classification threshold.",
+  "results": {
+    "Logistic Regression": {
+      "pr_auc": 0.8298260964291739,
+      "roc_auc": 0.9808125778172609,
+      "precision": 0.5823754789272031,
+      "recall": 0.8786127167630058,
+      "f1": 0.7004608294930875,
+      "confusion_matrix": [
+        [
+          3294,
+          109
+        ],
+        [
+          21,
+          152
+        ]
+      ],
+      "runtime_seconds": 3.78
+    },
+    "Random Forest": {
+      "pr_auc": 0.85110488964522,
+      "roc_auc": 0.9745039653892603,
+      "precision": 0.8141025641025641,
+      "recall": 0.7341040462427746,
+      "f1": 0.7720364741641338,
+      "confusion_matrix": [
+        [
+          3374,
+          29
+        ],
+        [
+          46,
+          127
+        ]
+      ],
+      "runtime_seconds": 18.21
+    },
+    "XGBoost": {
+      "pr_auc": 0.7640206562001867,
+      "roc_auc": 0.965895444176254,
+      "precision": 0.6231884057971014,
+      "recall": 0.7456647398843931,
+      "f1": 0.6789473684210526,
+      "confusion_matrix": [
+        [
+          3325,
+          78
+        ],
+        [
+          44,
+          129
+        ]
+      ],
+      "runtime_seconds": 10.27
+    }
+  }
+}
