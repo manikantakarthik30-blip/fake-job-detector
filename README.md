@@ -21,11 +21,11 @@ The training script:
 - Fits the final pipeline on the training partition and evaluates the holdout once.
 - Writes `model.joblib` and `metrics.json`.
 
-The current measured baseline is Logistic Regression with TF-IDF + SMOTE. Results are recorded in `training_metrics.json`. The holdout is a random split of this historical dataset; these scores are not evidence of live-world performance or protection against dataset/source bias. A separate Random Forest/XGBoost comparison has not been completed.
+The current production inference artifact is Logistic Regression with 5,000 TF-IDF features + SMOTE; its five-fold CV and holdout metrics are recorded in `training_metrics.json`/`metrics.json`. A separate like-for-like model comparison on a stratified 80/20 split, using 1,000 TF-IDF features and SMOTE on training data only, is recorded in `model_comparison_holdout.json`. In that comparison Random Forest achieved the best F1 (0.7554) and PR-AUC (0.8406); XGBoost achieved high recall (0.9538) but low precision (0.2194) at threshold 0.5. The comparison is a single holdout experiment, not five-fold CV. All scores are from a historical dataset and do not guarantee real-world performance.
 
 ## Inference
 
-`predict.py` exposes `predict_one({...}, model_path="model.joblib")`, returning a fraud probability, thresholded verdict, and (for Logistic Regression) the highest-weighted matched TF-IDF terms.
+`predict.py` exposes `predict_one({...}, model_path="model.joblib")`, returning a fraud probability, decision threshold, thresholded verdict, and (for Logistic Regression) the highest-weighted matched TF-IDF terms. The Streamlit **SINGLE CHECK** tab calls this function; it no longer uses the old hand-written keyword score. Place the generated `model.joblib` in the repository root before launching or deploying the app. If it is absent, the app displays the exact training command instead of silently using a fallback score.
 
 ## Tests and CI
 
@@ -38,3 +38,7 @@ The public EMSCAD dataset is available through Kaggle: [Real or Fake Fake Job Po
 ## Limitations
 
 This is a historical, English-language dataset. Predictions are risk signals, not proof that a job posting is fraudulent. Verify employers independently before making payments or sharing sensitive information.
+
+## Streamlit single-check integration
+
+The single-listing form sends the entered title, company name, and description to the saved model. The result displays the model probability, selected threshold, verdict, and top weighted terms. The CI suite includes a Streamlit AppTest that boots the app, submits a sample listing, and checks the rendered prediction. The batch-analysis tab remains a separate legacy workflow and should not be treated as the saved-model inference path.
